@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ua-tts-bench dataset</title>
+<meta name="description" content="Statistics and item browser for ua-tts-bench, a set of Ukrainian text inputs for TTS listening tests.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --surface: #ffffff;
+    --surface-2: #f0efe9;
+    --border: #e3e1d9;
+    --text: #1c1c1a;
+    --muted: #6c6b64;
+    --accent: #2453c4;
+    --accent-ink: #ffffff;
+    --ok: #1d7f46;
+    --bad: #c03b26;
+    --src: #fbe3a6;
+    --dst: #cdebce;
+    --hit: #2453c4;
+    --radius: 10px;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131312;
+      --surface: #1b1b19;
+      --surface-2: #252522;
+      --border: #33322e;
+      --text: #ecebe5;
+      --muted: #9a998f;
+      --accent: #86a8ff;
+      --accent-ink: #0d1220;
+      --ok: #5cc489;
+      --bad: #ff8a73;
+      --src: #5a4412;
+      --dst: #1e4a2b;
+      --hit: #86a8ff;
+      color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--sans); }
+  a { color: var(--accent); }
+  button { font: inherit; color: inherit; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+  @media (min-width: 720px) { .wrap { padding: 0 24px; } }
+  .muted { color: var(--muted); }
+  [hidden] { display: none !important; }
+
+  /* Header */
+  .top { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+  .top-inner { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; padding-top: 10px; padding-bottom: 10px; }
+  .brand h1 { margin: 0; font: 600 18px/1.3 var(--mono); letter-spacing: -0.01em; }
+  .brand p { margin: 0; color: var(--muted); font-size: 13px; }
+  .tabs { display: flex; gap: 4px; align-items: center; }
+  .tabs a { padding: 6px 12px; border-radius: 8px; color: var(--muted); text-decoration: none; font-weight: 500; white-space: nowrap; }
+  .tabs a:hover { color: var(--text); background: var(--surface-2); }
+  .tabs a[aria-current="page"] { color: var(--text); background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); }
+  .tabs .count { font: 12px var(--mono); color: var(--muted); margin-left: 2px; }
+
+  .status { padding: 64px 0; color: var(--muted); }
+  .status.err { color: var(--bad); }
+  .status code { font-family: var(--mono); background: var(--surface-2); padding: 1px 6px; border-radius: 4px; color: var(--text); }
+
+  /* Overview */
+  .stack { display: grid; gap: 16px; padding: 24px 0 48px; }
+  .grid2 { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 920px) { .grid2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px 20px; min-width: 0; }
+  .panel h2 { margin: 0 0 2px; font-size: 15px; font-weight: 600; }
+  .panel .sub { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+  .panel .sub code { font-family: var(--mono); font-size: 12px; }
+
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; text-align: left; }
+  button.tile { cursor: pointer; }
+  button.tile:hover { border-color: var(--accent); }
+  .tile .k { color: var(--muted); font-size: 13px; }
+  .tile .v { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.25; }
+  .tile .n { color: var(--muted); font-size: 12px; }
+  .tiles.small .tile .v { font-size: 22px; }
+
+  .checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .checks li { display: flex; gap: 10px; align-items: baseline; }
+  .checks .detail { color: var(--muted); font-size: 13px; }
+  .checks .detail a { font-family: var(--mono); font-size: 12px; }
+  .mark { font-weight: 600; flex: none; width: 1em; }
+  .mark.ok { color: var(--ok); }
+  .mark.bad { color: var(--bad); }
+
+  .core-table { width: 100%; border-collapse: collapse; }
+  .core-table th, .core-table td { padding: 10px 8px; border-top: 1px solid var(--border); vertical-align: middle; }
+  .core-table th { border-top: 0; padding-top: 0; text-align: left; font-size: 12px; font-weight: 500; color: var(--muted); }
+  .core-table th:first-child, .core-table td:first-child { padding-left: 0; }
+  .core-table th:last-child, .core-table td:last-child { padding-right: 0; }
+  .core-table .about { display: block; color: var(--muted); font-size: 13px; }
+  .core-table .col-bar { width: 38%; }
+  .num { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  th.num { font-family: var(--sans); }
+  .bar { position: relative; height: 10px; background: var(--surface-2); border-radius: 5px; }
+  .bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 5px; }
+  .bar > b { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--text); border-radius: 1px; }
+  @media (max-width: 640px) { .core-table .col-bar { display: none; } }
+
+  .taglink { font: 500 13px var(--mono); background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; }
+  .taglink:hover { text-decoration: underline; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin-top: 12px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .legend i.min { width: 2px; height: 12px; background: var(--text); }
+
+  .heat-wrap { overflow-x: auto; padding-bottom: 4px; }
+  .heat { display: grid; grid-template-columns: max-content repeat(var(--n), minmax(30px, 1fr)); gap: 3px; min-width: max-content; }
+  .heat .rl { font: 12px var(--mono); color: var(--muted); padding-right: 8px; display: flex; align-items: center; justify-content: flex-end; }
+  .heat .cl { font: 12px var(--mono); color: var(--muted); writing-mode: vertical-rl; transform: rotate(180deg); justify-self: center; align-self: end; padding-top: 4px; }
+  .heat .cell { aspect-ratio: 1; min-height: 30px; border: 0; border-radius: 4px; padding: 0; display: grid; place-items: center; font: 11px var(--mono); font-variant-numeric: tabular-nums; background: var(--surface-2); cursor: pointer; }
+  .heat .cell:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .heat .cell.diag { background: transparent; box-shadow: inset 0 0 0 1px var(--border); font-weight: 500; color: var(--muted); }
+  .heat .cell.zero { color: transparent; cursor: default; }
+  .heat .cell.zero:hover { outline: 0; }
+
+  .groups { display: grid; gap: 14px; }
+  .group h3 { margin: 0 0 6px; font: 500 12px var(--mono); color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font: 13px/1 var(--mono); padding: 6px 9px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+  .chip span { color: var(--muted); font-size: 11px; }
+  .chip:hover { border-color: var(--accent); }
+  .chip.core { background: var(--surface-2); font-weight: 500; }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .chip[aria-pressed="true"] span { color: inherit; opacity: 0.75; }
+  .chip.sm { padding: 3px 7px; font-size: 12px; }
+
+  .hist { display: flex; align-items: flex-end; gap: 4px; height: 170px; }
+  .hist .col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+  .hist .col i { display: block; width: 100%; background: var(--accent); border-radius: 3px 3px 0 0; }
+  .hist .col .c { font: 11px var(--mono); color: var(--muted); margin-bottom: 3px; }
+  .hist-labels { display: flex; gap: 4px; margin-top: 0; padding-top: 5px; border-top: 1px solid var(--border); }
+  .hist-labels span { flex: 1; min-width: 0; text-align: center; font: 10px var(--mono); color: var(--muted); overflow: hidden; white-space: nowrap; }
+  .axis-note { margin-top: 6px; font-size: 12px; color: var(--muted); text-align: center; }
+
+  .ranges { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; gap: 9px 12px; align-items: center; }
+  .ranges .t { font: 12px var(--mono); color: var(--muted); }
+  .ranges .num { font-size: 12px; color: var(--muted); }
+  .track { position: relative; height: 14px; }
+  .track::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--border); }
+  .track .seg { position: absolute; top: 50%; height: 4px; margin-top: -2px; min-width: 3px; border-radius: 2px; background: color-mix(in srgb, var(--accent) 45%, transparent); }
+  .track .med { position: absolute; top: 50%; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface); }
+  .ranges .axis { display: flex; justify-content: space-between; font: 11px var(--mono); color: var(--muted); }
+
+  .freq-wrap { overflow-x: auto; padding-bottom: 4px; }
+  .freq { display: flex; gap: 3px; height: 200px; min-width: 860px; }
+  .freq .col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; border: 0; padding: 0; background: none; cursor: pointer; }
+  .freq .col i { display: block; width: 100%; background: var(--accent); border-radius: 3px 3px 0 0; }
+  .freq .col:hover i { background: color-mix(in srgb, var(--accent) 75%, var(--text)); }
+  .freq .col .c { font: 10px var(--mono); color: var(--muted); margin-bottom: 3px; white-space: nowrap; }
+  .freq .col b { font-size: 14px; font-weight: 500; padding-top: 5px; margin-top: 0; border-top: 1px solid var(--border); width: 100%; text-align: center; }
+  .abc { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 6px; }
+  .abc button { border: 1px solid var(--border); border-radius: 8px; padding: 6px 4px 5px; cursor: pointer; display: grid; justify-items: center; gap: 1px; }
+  .abc button:hover { border-color: var(--accent); }
+  .abc b { font-size: 20px; font-weight: 500; line-height: 1.2; }
+  .abc span { font: 11px var(--mono); color: var(--muted); }
+  .abc .rare { border-style: dashed; border-color: var(--bad); }
+  .legend i.rare { border: 1px dashed var(--bad); }
+
+  /* Items */
+  .toolbar { display: grid; gap: 12px; padding: 20px 0 12px; }
+  .row { display: flex; gap: 8px 10px; flex-wrap: wrap; align-items: center; }
+  .search { position: relative; flex: 1 1 280px; }
+  .search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+  .search input { width: 100%; padding: 10px 40px 10px 36px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; }
+  .search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .search kbd { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font: 11px var(--mono); color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; pointer-events: none; }
+  select { font: 13px var(--sans); color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { border: 0; background: none; padding: 8px 11px; font-size: 13px; color: var(--muted); cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); font-weight: 500; }
+  .toggle { display: inline-flex; gap: 7px; align-items: center; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; }
+  .toggle input { accent-color: var(--accent); margin: 0; }
+  .label { font-size: 12px; color: var(--muted); }
+  details.more summary { cursor: pointer; font-size: 13px; color: var(--muted); padding: 2px 0; }
+  details.more summary:hover { color: var(--text); }
+  details.more .groups { margin-top: 12px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  .linkbtn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font-size: 13px; }
+  .linkbtn:hover { text-decoration: underline; }
+
+  .results { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; justify-content: space-between; padding: 4px 0 12px; font-size: 13px; color: var(--muted); }
+  .results .legend { margin: 0; }
+  .cards { display: grid; gap: 10px; padding-bottom: 56px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px 16px; scroll-margin-top: 110px; }
+  .card.flash { animation: flash 1.8s ease-out; }
+  @keyframes flash { from { box-shadow: 0 0 0 3px var(--accent); } to { box-shadow: 0 0 0 3px transparent; } }
+  .card-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-bottom: 8px; }
+  .item-id { font: 12px var(--mono); color: var(--muted); text-decoration: none; }
+  .item-id:hover { color: var(--accent); text-decoration: underline; }
+  .copy { font: 11px var(--mono); color: var(--muted); background: none; border: 1px solid var(--border); border-radius: 5px; padding: 2px 6px; cursor: pointer; }
+  .copy:hover { color: var(--text); border-color: var(--muted); }
+  .meta { font: 12px var(--mono); color: var(--muted); }
+  .card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+  .text { margin: 0; font-size: 18px; line-height: 1.6; }
+  .norm { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+  .norm-label { font: 11px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .norm p { margin: 2px 0 0; font-size: 16px; line-height: 1.6; }
+  .src { background: var(--src); border-radius: 3px; }
+  .dst { background: var(--dst); border-radius: 3px; }
+  .hit { box-shadow: inset 0 -0.5em 0 color-mix(in srgb, var(--hit) 32%, transparent); }
+  .legend i.src { background: var(--src); }
+  .legend i.dst { background: var(--dst); }
+  .legend i.hit { background: color-mix(in srgb, var(--hit) 32%, transparent); }
+  .empty { padding: 40px 0; text-align: center; color: var(--muted); }
+
+  .foot { padding-top: 16px; padding-bottom: 32px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-inner">
+    <div class="brand">
+      <h1>ua-tts-bench</h1>
+      <p>Ukrainian text inputs for TTS listening tests</p>
+    </div>
+    <nav class="tabs" aria-label="Views">
+      <a href="#overview" data-tab="overview">Overview</a>
+      <a href="#items" data-tab="items">Items<span class="count" id="nav-count"></span></a>
+      <a id="repo-link" hidden>GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="status" class="status">Loading dataset.jsonl…</div>
+  <noscript><div class="status err">This page needs JavaScript to read dataset.jsonl.</div></noscript>
+
+  <section id="view-overview" hidden></section>
+
+  <section id="view-items" hidden>
+    <div class="toolbar">
+      <div class="row">
+        <label class="search">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <input id="q" type="search" placeholder="Search text, normalized text or id" autocomplete="off" spellcheck="false" aria-label="Search items">
+          <kbd>/</kbd>
+        </label>
+        <select id="sort" aria-label="Sort items">
+          <option value="order">Dataset order</option>
+          <option value="shortest">Shortest first</option>
+          <option value="longest">Longest first</option>
+          <option value="id">By id</option>
+        </select>
+      </div>
+      <div class="row">
+        <div class="chips" id="core-chips"></div>
+      </div>
+      <div class="row">
+        <span class="label">Match</span>
+        <div class="seg" id="mode">
+          <button type="button" data-mode="any">any tag</button>
+          <button type="button" data-mode="all">all tags</button>
+        </div>
+        <label class="toggle"><input type="checkbox" id="changed"> Only items changed by normalization</label>
+      </div>
+      <details class="more" id="more-tags">
+        <summary>Detail tags</summary>
+        <div class="groups" id="free-chips"></div>
+      </details>
+    </div>
+    <div class="results">
+      <span id="results-count"></span>
+      <div class="legend">
+        <span><i class="src"></i>changed by normalization</span>
+        <span><i class="dst"></i>normalized form</span>
+        <span><i class="hit"></i>search match</span>
+      </div>
+    </div>
+    <div class="cards" id="cards"></div>
+  </section>
+</main>
+
+<footer class="wrap foot" id="foot" hidden></footer>
+
+<script>
+// Core tags and the minimum number of items each must have.
+const CORE_TAGS = [
+  { tag: "neutral", min: 40, about: "Plain declarative sentences without special difficulty" },
+  { tag: "stress", min: 30, about: "Stress homographs and commonly misstressed words" },
+  { tag: "numbers", min: 30, about: "Numerals, dates, money and units in the right case and gender" },
+  { tag: "ru_accent", min: 20, about: "Sounds that Russian-accented models tend to get wrong" },
+  { tag: "intonation", min: 20, about: "Questions, exclamations, lists and dialogue" },
+  { tag: "code_switch", min: 20, about: "Latin script, brands, English phrases and anglicisms" },
+  { tag: "long", min: 20, about: "Paragraphs of 60+ words for prosody and stability" },
+  { tag: "short", min: 10, about: "Utterances of one to three words" },
+  { tag: "tongue_twister", min: 10, about: "Dense repetition of similar sounds" },
+];
+const CORE = CORE_TAGS.map((c) => c.tag);
+const WORDS_PER_MINUTE = 130;
+const UK_LETTERS = [..."абвгґдеєжзиіїйклмнопрстуфхцчшщьюя"];
+const RARE_LETTER_ITEMS = 5;
+const LENGTH_BINS = [[1, 3], [4, 6], [7, 9], [10, 12], [13, 15], [16, 20], [21, 30], [31, 45], [46, 60], [61, 75], [76, 90], [91, Infinity]];
+const SORTS = {
+  order: (a, b) => a.index - b.index,
+  shortest: (a, b) => a.words - b.words || a.index - b.index,
+  longest: (a, b) => b.words - a.words || a.index - b.index,
+  id: (a, b) => a.id.localeCompare(b.id),
+};
+
+const $ = (sel, el = document) => el.querySelector(sel);
+const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const sum = (xs) => xs.reduce((a, b) => a + b, 0);
+const median = (xs) => {
+  const s = [...xs].sort((a, b) => a - b), m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+const wordCount = (s) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+const seconds = (words) => (words / WORDS_PER_MINUTE) * 60;
+const fmtDuration = (words) => {
+  const s = seconds(words);
+  return s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`;
+};
+const shade = (pct) => `color-mix(in srgb, var(--accent) ${Math.round(pct)}%, var(--surface))`;
+
+const state = { q: "", tags: new Set(), mode: "any", changedOnly: false, sort: "order" };
+let items = [];
+const byId = new Map();
+const tagCounts = new Map();
+let freeGroups = [];
+let letterStats = [];
+
+// ---- Text helpers ----
+
+// Lowercase, unify apostrophes and drop stress marks, keeping a map back to the original indices.
+function fold(s) {
+  let str = "";
+  const map = [];
+  for (let i = 0; i < s.length; i++) {
+    let ch = s[i];
+    if (ch === "́") continue;
+    if ("’ʼ‘`ʹ".includes(ch)) ch = "'";
+    const low = ch.toLowerCase();
+    str += low.length === 1 ? low : ch;
+    map.push(i);
+  }
+  return { str, map };
+}
+
+function hitRanges(f, q) {
+  const out = [];
+  if (!q) return out;
+  for (let i = f.str.indexOf(q); i !== -1; i = f.str.indexOf(q, i + q.length)) {
+    out.push([f.map[i], f.map[i + q.length - 1] + 1]);
+  }
+  return out;
+}
+
+// Word-level diff between text and its normalized form, as character ranges in each string.
+function diffRanges(a, b) {
+  const tok = (s) => s.match(/\s+|\S+/g) || [];
+  const A = tok(a), B = tok(b), n = A.length, m = B.length;
+  const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const keepA = new Array(n).fill(false), keepB = new Array(m).fill(false);
+  for (let i = 0, j = 0; i < n && j < m; ) {
+    if (A[i] === B[j]) { keepA[i++] = keepB[j++] = true; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
+    else j++;
+  }
+  return [toRanges(A, keepA), toRanges(B, keepB)];
+}
+
+function toRanges(tokens, keep) {
+  const isWord = (t) => /\S/.test(t);
+  const changed = tokens.map((t, k) => !keep[k] && isWord(t));
+  // Join neighbouring changed words into one highlighted run.
+  for (let k = 1; k < tokens.length - 1; k++) {
+    if (!isWord(tokens[k]) && changed[k - 1] && changed[k + 1]) changed[k] = true;
+  }
+  const ranges = [];
+  let pos = 0;
+  tokens.forEach((t, k) => {
+    if (changed[k]) {
+      const last = ranges[ranges.length - 1];
+      if (last && last[1] === pos) last[1] += t.length;
+      else ranges.push([pos, pos + t.length]);
+    }
+    pos += t.length;
+  });
+  return ranges;
+}
+
+function renderMarked(s, layers) {
+  const cuts = new Set([0, s.length]);
+  for (const l of layers) for (const [a, b] of l.ranges) { cuts.add(a); cuts.add(b); }
+  const pts = [...cuts].sort((x, y) => x - y);
+  let html = "";
+  for (let k = 0; k < pts.length - 1; k++) {
+    const a = pts[k], b = pts[k + 1];
+    const cls = layers.filter((l) => l.ranges.some(([x, y]) => x <= a && b <= y)).map((l) => l.cls);
+    const piece = esc(s.slice(a, b));
+    html += cls.length ? `<span class="${cls.join(" ")}">${piece}</span>` : piece;
+  }
+  return html;
+}
+
+// ---- Data ----
+
+async function load() {
+  const res = await fetch("dataset.jsonl", { cache: "no-cache" });
+  if (!res.ok) throw new Error(`dataset.jsonl: HTTP ${res.status}`);
+  const raw = [];
+  (await res.text()).split("\n").forEach((line, i) => {
+    if (!line.trim()) return;
+    try { raw.push(JSON.parse(line)); }
+    catch (e) { throw new Error(`dataset.jsonl line ${i + 1}: ${e.message}`); }
+  });
+  return { raw, modified: res.headers.get("last-modified") };
+}
+
+function prepare(raw) {
+  items = raw.map((r, index) => {
+    const text = r.text ?? "";
+    const norm = r.text_normalized ?? text;
+    const tags = Array.isArray(r.tags) ? r.tags : [];
+    const changed = text !== norm;
+    const [srcRanges, dstRanges] = changed ? diffRanges(text, norm) : [[], []];
+    return {
+      id: String(r.id ?? ""), text, norm, tags, tagSet: new Set(tags), index, changed, srcRanges, dstRanges,
+      words: wordCount(norm), textF: fold(text), normF: fold(norm),
+    };
+  });
+  for (const it of items) {
+    byId.set(it.id, it);
+    for (const t of it.tags) tagCounts.set(t, (tagCounts.get(t) || 0) + 1);
+  }
+  freeGroups = groupFreeTags();
+}
+
+// Group each detail tag under the core tag it co-occurs with most.
+function groupFreeTags() {
+  const groups = new Map([...CORE.map((c) => [c, []]), ["other", []]]);
+  for (const t of tagCounts.keys()) {
+    if (CORE.includes(t)) continue;
+    let best = "other", bestN = 0;
+    for (const c of CORE) {
+      const n = items.filter((it) => it.tagSet.has(t) && it.tagSet.has(c)).length;
+      if (n > bestN) { best = c; bestN = n; }
+    }
+    groups.get(best).push(t);
+  }
+  return [...groups]
+    .filter(([, ts]) => ts.length)
+    .map(([core, ts]) => [core, ts.sort((a, b) => tagCounts.get(b) - tagCounts.get(a) || a.localeCompare(b))]);
+}
+
+// ---- Overview ----
+
+function itemLinks(list, limit = 5) {
+  const links = list.slice(0, limit).map((it) => `<a href="#${esc(it.id)}">${esc(it.id)}</a>`).join(", ");
+  return list.length > limit ? `${links} and ${list.length - limit} more` : links;
+}
+
+function checks() {
+  const below = CORE_TAGS.filter((c) => (tagCounts.get(c.tag) || 0) < c.min);
+  const noCore = items.filter((it) => !it.tags.some((t) => CORE.includes(t)));
+  const mixedNeutral = items.filter((it) => it.tagSet.has("neutral") && it.tags.some((t) => t !== "neutral" && CORE.includes(t)));
+  const seen = new Set(), dups = [];
+  for (const it of items) { if (seen.has(it.id)) dups.push(it); seen.add(it.id); }
+  const digits = items.filter((it) => /\d/.test(it.norm));
+  const apostrophes = items.filter((it) => /[’ʼ‘`ʹ]/.test(it.text + it.norm));
+  return [
+    [!below.length, "Every core tag meets its minimum", below.map((c) => `${c.tag} ${tagCounts.get(c.tag) || 0}/${c.min}`).join(", ")],
+    [!noCore.length, "Every item has at least one core tag", itemLinks(noCore)],
+    [!mixedNeutral.length, "Neutral items carry no other core tag", itemLinks(mixedNeutral)],
+    [!dups.length, "Ids are unique", itemLinks(dups)],
+    [!digits.length, "Normalized text contains no digits", itemLinks(digits)],
+    [!apostrophes.length, "Apostrophes are U+0027 (')", itemLinks(apostrophes)],
+  ];
+}
+
+function renderOverview() {
+  const totalWords = sum(items.map((it) => it.words));
+  const changedN = items.filter((it) => it.changed).length;
+  const coreN = CORE.filter((c) => tagCounts.has(c)).length;
+  const checkRows = checks();
+  const failed = checkRows.filter(([ok]) => !ok).length;
+
+  const tiles = `
+    <div class="tiles">
+      <div class="tile"><div class="k">Items</div><div class="v">${items.length}</div><div class="n">${coreN} core tags, ${tagCounts.size - coreN} detail tags</div></div>
+      <div class="tile"><div class="k">Words</div><div class="v">${totalWords.toLocaleString("en")}</div><div class="n">median ${median(items.map((it) => it.words))} per item, normalized</div></div>
+      <div class="tile"><div class="k">Audio per model</div><div class="v">≈ ${fmtDuration(totalWords)}</div><div class="n">at ${WORDS_PER_MINUTE} words/min, no pauses</div></div>
+      <button class="tile" type="button" data-go data-go-changed="1"><div class="k">Changed by normalization</div><div class="v">${changedN}</div><div class="n">${Math.round((changedN / items.length) * 100)}% of items · browse →</div></button>
+      <div class="tile"><div class="k">Checks</div><div class="v" style="color: var(${failed ? "--bad" : "--ok"})">${checkRows.length - failed}/${checkRows.length}</div><div class="n">${failed ? `${failed} failing` : "all passing"}</div></div>
+    </div>`;
+
+  const checksPanel = `
+    <div class="panel">
+      <h2>Checks</h2>
+      <p class="sub">Structural rules of the dataset. Id hashes are checked separately by <code>make validate-dataset-ids</code>.</p>
+      <ul class="checks">${checkRows.map(([ok, label, detail]) => `
+        <li><span class="mark ${ok ? "ok" : "bad"}">${ok ? "✓" : "✗"}</span><span>${esc(label)}${!ok && detail ? ` <span class="detail">— ${detail}</span>` : ""}</span></li>`).join("")}
+      </ul>
+    </div>`;
+
+  const scale = Math.max(...CORE_TAGS.map((c) => Math.max(tagCounts.get(c.tag) || 0, c.min)));
+  const coreRows = CORE_TAGS.map((c) => {
+    const n = tagCounts.get(c.tag) || 0;
+    const words = sum(items.filter((it) => it.tagSet.has(c.tag)).map((it) => it.words));
+    const ok = n >= c.min;
+    return `<tr>
+      <td><button class="taglink" type="button" data-go data-go-tags="${esc(c.tag)}">${esc(c.tag)}</button><span class="about">${esc(c.about)}</span></td>
+      <td class="col-bar"><div class="bar"><i style="width:${(n / scale) * 100}%"></i><b style="left:${(c.min / scale) * 100}%" title="minimum ${c.min}"></b></div></td>
+      <td class="num">${n} <span class="muted">/ ${c.min}</span></td>
+      <td class="num">≈ ${fmtDuration(words)}</td>
+      <td class="num"><span class="mark ${ok ? "ok" : "bad"}" title="${ok ? "meets minimum" : "below minimum"}">${ok ? "✓" : "✗"}</span></td>
+    </tr>`;
+  }).join("");
+  const corePanel = `
+    <div class="panel">
+      <h2>Core tags</h2>
+      <p class="sub">Each core tag must have at least its minimum number of items. Tags may overlap, so counts add up to more than ${items.length}.</p>
+      <table class="core-table">
+        <thead><tr><th>Tag</th><th class="col-bar"></th><th class="num">Items / min</th><th class="num">Audio</th><th></th></tr></thead>
+        <tbody>${coreRows}</tbody>
+      </table>
+      <div class="legend"><span><i style="background: var(--accent)"></i>items with the tag</span><span><i class="min"></i>minimum</span></div>
+    </div>`;
+
+  const both = (a, b) => items.filter((it) => it.tagSet.has(a) && it.tagSet.has(b)).length;
+  let maxOff = 1;
+  for (const a of CORE) for (const b of CORE) if (a !== b) maxOff = Math.max(maxOff, both(a, b));
+  let heat = `<div></div>${CORE.map((c) => `<div class="cl">${esc(c)}</div>`).join("")}`;
+  for (const a of CORE) {
+    heat += `<div class="rl">${esc(a)}</div>`;
+    for (const b of CORE) {
+      const n = both(a, b);
+      if (a === b) {
+        heat += `<button class="cell diag" type="button" data-go data-go-tags="${a}" title="${a}: ${n} items">${n}</button>`;
+      } else if (!n) {
+        heat += `<span class="cell zero" title="${a} + ${b}: none">0</span>`;
+      } else {
+        const pct = 12 + (n / maxOff) * 70;
+        const ink = pct > 50 ? "color: var(--accent-ink);" : "";
+        heat += `<button class="cell" type="button" style="background:${shade(pct)};${ink}" data-go data-go-tags="${a},${b}" data-go-mode="all" title="${a} + ${b}: ${n} items">${n}</button>`;
+      }
+    }
+  }
+  const heatPanel = `
+    <div class="panel">
+      <h2>Tag overlap</h2>
+      <p class="sub">Items carrying both core tags. The diagonal is the tag's total. Click a cell to browse those items.</p>
+      <div class="heat-wrap"><div class="heat" style="--n:${CORE.length}">${heat}</div></div>
+    </div>`;
+
+  const freePanel = `
+    <div class="panel">
+      <h2>Detail tags</h2>
+      <p class="sub">${tagCounts.size - coreN} detail tags, grouped under the core tag they appear with most.</p>
+      <div class="groups">${freeGroups.map(([core, ts]) => `
+        <div class="group"><h3>${esc(core)}</h3><div class="chips">${ts.map((t) =>
+          `<button class="chip sm" type="button" data-go data-go-tags="${esc(t)}">${esc(t)} <span>${tagCounts.get(t)}</span></button>`).join("")}</div></div>`).join("")}
+      </div>
+    </div>`;
+
+  const binCounts = LENGTH_BINS.map(([lo, hi]) => items.filter((it) => it.words >= lo && it.words <= hi).length);
+  const binMax = Math.max(1, ...binCounts);
+  const binLabel = ([lo, hi]) => (hi === Infinity ? `${lo}+` : lo === hi ? `${lo}` : `${lo}–${hi}`);
+  const histPanel = `
+    <div class="panel">
+      <h2>Length distribution</h2>
+      <p class="sub">Items by number of words in the normalized text.</p>
+      <div class="hist">${binCounts.map((n, i) => `
+        <div class="col" title="${binLabel(LENGTH_BINS[i])} words: ${n} items"><span class="c">${n || ""}</span><i style="height:${(n / binMax) * 100}%"></i></div>`).join("")}
+      </div>
+      <div class="hist-labels">${LENGTH_BINS.map((b) => `<span>${binLabel(b)}</span>`).join("")}</div>
+      <div class="axis-note">words per item</div>
+    </div>`;
+
+  const maxWords = Math.max(...items.map((it) => it.words));
+  const rangeRows = CORE_TAGS.map((c) => {
+    const ws = items.filter((it) => it.tagSet.has(c.tag)).map((it) => it.words);
+    if (!ws.length) return "";
+    const lo = Math.min(...ws), hi = Math.max(...ws), med = median(ws);
+    const x = (v) => (v / maxWords) * 100;
+    return `<span class="t">${esc(c.tag)}</span>
+      <div class="track" title="${c.tag}: ${lo}–${hi} words, median ${med}"><span class="seg" style="left:${x(lo)}%;width:${x(hi) - x(lo)}%"></span><span class="med" style="left:${x(med)}%"></span></div>
+      <span class="num">${lo}–${hi}</span>`;
+  }).join("");
+  const rangePanel = `
+    <div class="panel">
+      <h2>Length by core tag</h2>
+      <p class="sub">Range of word counts, with the median marked.</p>
+      <div class="ranges">${rangeRows}<span></span><div class="axis"><span>0</span><span>${maxWords} words</span></div><span></span></div>
+    </div>`;
+
+  const occ = new Map(UK_LETTERS.map((l) => [l, 0]));
+  const inItems = new Map(UK_LETTERS.map((l) => [l, 0]));
+  for (const it of items) {
+    const seenHere = new Set();
+    for (const ch of it.norm.toLowerCase()) if (occ.has(ch)) { occ.set(ch, occ.get(ch) + 1); seenHere.add(ch); }
+    for (const ch of seenHere) inItems.set(ch, inItems.get(ch) + 1);
+  }
+  letterStats = UK_LETTERS.map((l, index) => ({ l, index, n: occ.get(l) }));
+  const maxOcc = Math.max(...occ.values());
+  const letters = UK_LETTERS.map((l) => {
+    const n = occ.get(l), k = inItems.get(l);
+    const pct = n ? 6 + (Math.log1p(n) / Math.log1p(maxOcc)) * 34 : 0;
+    return `<button type="button" class="${k < RARE_LETTER_ITEMS ? "rare" : ""}" style="background:${shade(pct)}" data-go data-go-q="${l}" title="${l}: ${n} occurrences in ${k} items"><b>${l}</b><span>${k}</span></button>`;
+  }).join("");
+  const count = (re) => items.filter((it) => re.test(it.text)).length;
+  const lettersPanel = `
+    <div class="panel">
+      <h2>Alphabet coverage</h2>
+      <p class="sub">All 33 letters of the Ukrainian alphabet, with the number of items containing each. Shade shows total occurrences. Click a letter to search for it.</p>
+      <div class="abc">${letters}</div>
+      <div class="legend"><span><i class="rare"></i>in fewer than ${RARE_LETTER_ITEMS} items</span></div>
+      <div class="tiles small" style="margin-top:16px">
+        <div class="tile"><div class="k">With apostrophe</div><div class="v">${count(/'/)}</div></div>
+        <div class="tile"><div class="k">With Latin script</div><div class="v">${count(/[A-Za-z]/)}</div></div>
+        <div class="tile"><div class="k">With digits</div><div class="v">${count(/\d/)}</div></div>
+        <div class="tile"><div class="k">With symbols</div><div class="v">${count(/[%°№$€₴£+=×÷&@#/−]/)}</div><div class="n">% ° № ₴ $ € − / …</div></div>
+      </div>
+    </div>`;
+
+  const freqPanel = `
+    <div class="panel">
+      <h2>Letter frequency</h2>
+      <p class="sub">Occurrences of each letter among all ${sum(letterStats.map((s) => s.n)).toLocaleString("en")} Ukrainian letters in the normalized text. Hover a bar for its share, click it to search for the letter.</p>
+      <div class="freq-wrap"><div class="freq" id="letter-chart"></div></div>
+    </div>`;
+
+  $("#view-overview").innerHTML = `
+    <div class="stack">
+      ${tiles}
+      ${checksPanel}
+      ${corePanel}
+      <div class="grid2">${heatPanel}${freePanel}</div>
+      <div class="grid2">${histPanel}${rangePanel}</div>
+      ${freqPanel}
+      ${lettersPanel}
+    </div>`;
+  renderLetterChart();
+}
+
+function renderLetterChart() {
+  const total = sum(letterStats.map((s) => s.n)) || 1;
+  const max = Math.max(1, ...letterStats.map((s) => s.n));
+  $("#letter-chart").innerHTML = letterStats.map((s) => {
+    const pct = (s.n / total) * 100;
+    return `<button type="button" class="col" data-go data-go-q="${s.l}" title="${s.l}: ${pct.toFixed(2)}% of letters (${s.n})">
+      <span class="c">${s.n}</span><i style="height:${(s.n / max) * 82}%"></i><b>${s.l}</b></button>`;
+  }).join("");
+}
+
+// ---- Items ----
+
+function chip(t, cls = "") {
+  return `<button class="chip ${cls}" type="button" data-toggle="${esc(t)}" aria-pressed="false">${esc(t)} <span>${tagCounts.get(t) || 0}</span></button>`;
+}
+
+function renderFilters() {
+  $("#core-chips").innerHTML = CORE.filter((c) => tagCounts.has(c)).map((c) => chip(c, "core")).join("");
+  $("#free-chips").innerHTML = freeGroups.map(([core, ts]) => `
+    <div class="group"><h3>${esc(core)}</h3><div class="chips">${ts.map((t) => chip(t, "sm")).join("")}</div></div>`).join("");
+}
+
+function syncFilterUI() {
+  $("#q").value = state.q;
+  $("#sort").value = state.sort;
+  $("#changed").checked = state.changedOnly;
+  $$("#mode button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === state.mode)));
+  $$("[data-toggle]", $("#view-items .toolbar")).forEach((b) => b.setAttribute("aria-pressed", String(state.tags.has(b.dataset.toggle))));
+  if ([...state.tags].some((t) => !CORE.includes(t))) $("#more-tags").open = true;
+}
+
+function matches(it, q) {
+  if (state.changedOnly && !it.changed) return false;
+  if (state.tags.size) {
+    const sel = [...state.tags], has = (t) => it.tagSet.has(t);
+    if (state.mode === "all" ? !sel.every(has) : !sel.some(has)) return false;
+  }
+  return !q || it.textF.str.includes(q) || it.normF.str.includes(q) || it.id.startsWith(q);
+}
+
+function card(it, q) {
+  const tags = it.tags.map((t) => `<button class="chip sm ${CORE.includes(t) ? "core" : ""}" type="button" data-toggle="${esc(t)}" title="Filter by ${esc(t)}">${esc(t)}</button>`).join("");
+  const text = renderMarked(it.text, [{ ranges: it.srcRanges, cls: "src" }, { ranges: hitRanges(it.textF, q), cls: "hit" }]);
+  const norm = it.changed
+    ? `<div class="norm"><span class="norm-label">normalized</span><p lang="uk">${renderMarked(it.norm, [{ ranges: it.dstRanges, cls: "dst" }, { ranges: hitRanges(it.normF, q), cls: "hit" }])}</p></div>`
+    : "";
+  return `<article class="card" id="item-${esc(it.id)}">
+    <div class="card-head">
+      <a class="item-id" href="#${esc(it.id)}" title="Link to this item">${esc(it.id)}</a>
+      <button class="copy" type="button" data-copy="${esc(it.id)}">copy id</button>
+      <span class="meta">#${it.index + 1} · ${it.words} ${it.words === 1 ? "word" : "words"} · ≈ ${Math.max(1, Math.round(seconds(it.words)))} s</span>
+      <span class="card-tags">${tags}</span>
+    </div>
+    <p class="text" lang="uk">${text}</p>
+    ${norm}
+  </article>`;
+}
+
+function hasFilters() {
+  return Boolean(state.q || state.tags.size || state.changedOnly);
+}
+
+function renderItems() {
+  const q = fold(state.q.trim()).str;
+  const list = items.filter((it) => matches(it, q)).sort(SORTS[state.sort]);
+  $("#cards").innerHTML = list.length
+    ? list.map((it) => card(it, q)).join("")
+    : `<div class="empty">No items match these filters. <button class="linkbtn" type="button" data-clear>Clear filters</button></div>`;
+  $("#results-count").innerHTML = `Showing ${list.length} of ${items.length} items` +
+    (hasFilters() ? ` · <button class="linkbtn" type="button" data-clear>Clear filters</button>` : "");
+  syncUrl();
+}
+
+function readUrl() {
+  const p = new URLSearchParams(location.search);
+  state.q = p.get("q") || "";
+  state.tags = new Set((p.get("tags") || "").split(",").filter(Boolean));
+  state.mode = p.get("mode") === "all" ? "all" : "any";
+  state.changedOnly = p.get("changed") === "1";
+  state.sort = SORTS[p.get("sort")] ? p.get("sort") : "order";
+}
+
+function syncUrl() {
+  const p = new URLSearchParams();
+  if (state.q) p.set("q", state.q);
+  if (state.tags.size) p.set("tags", [...state.tags].join(","));
+  if (state.mode === "all") p.set("mode", "all");
+  if (state.changedOnly) p.set("changed", "1");
+  if (state.sort !== "order") p.set("sort", state.sort);
+  const qs = p.toString();
+  history.replaceState(null, "", location.pathname + (qs ? `?${qs}` : "") + location.hash);
+}
+
+function setFilters({ q = "", tags = [], mode = "any", changedOnly = false } = {}) {
+  Object.assign(state, { q, tags: new Set(tags), mode, changedOnly });
+  syncFilterUI();
+  renderItems();
+}
+
+// ---- Navigation ----
+
+function showTab(name) {
+  const prev = $("#view-items").hidden ? "overview" : "items";
+  $("#view-overview").hidden = name !== "overview";
+  $("#view-items").hidden = name !== "items";
+  $$(".tabs a[data-tab]").forEach((a) => {
+    if (a.dataset.tab === name) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  });
+  return prev !== name;
+}
+
+function focusItem(id) {
+  if (!$(`#item-${CSS.escape(id)}`)) setFilters();
+  const el = $(`#item-${CSS.escape(id)}`);
+  requestAnimationFrame(() => {
+    el.scrollIntoView({ block: "center" });
+    el.classList.remove("flash");
+    void el.offsetWidth;
+    el.classList.add("flash");
+  });
+}
+
+function route() {
+  const h = decodeURIComponent(location.hash.slice(1));
+  if (byId.has(h)) { showTab("items"); focusItem(h); return; }
+  if (showTab(h === "items" ? "items" : "overview")) window.scrollTo(0, 0);
+}
+
+function goItems(filters) {
+  setFilters(filters);
+  if (location.hash === "#items") route();
+  else location.hash = "items";
+  window.scrollTo(0, 0);
+}
+
+async function copyId(btn) {
+  try { await navigator.clipboard.writeText(btn.dataset.copy); btn.textContent = "copied"; }
+  catch { btn.textContent = "copy failed"; }
+  setTimeout(() => { btn.textContent = "copy id"; }, 1200);
+}
+
+function bindEvents() {
+  document.addEventListener("click", (e) => {
+    const go = e.target.closest("[data-go]");
+    if (go) {
+      const d = go.dataset;
+      goItems({ tags: d.goTags ? d.goTags.split(",") : [], mode: d.goMode || "any", changedOnly: d.goChanged === "1", q: d.goQ || "" });
+      return;
+    }
+    const toggle = e.target.closest("[data-toggle]");
+    if (toggle) {
+      const t = toggle.dataset.toggle;
+      if (state.tags.has(t)) state.tags.delete(t); else state.tags.add(t);
+      syncFilterUI();
+      renderItems();
+      return;
+    }
+    const mode = e.target.closest("[data-mode]");
+    if (mode) { state.mode = mode.dataset.mode; syncFilterUI(); renderItems(); return; }
+    if (e.target.closest("[data-clear]")) { setFilters(); return; }
+    const copy = e.target.closest("[data-copy]");
+    if (copy) copyId(copy);
+  });
+  $("#q").addEventListener("input", (e) => { state.q = e.target.value; renderItems(); });
+  $("#q").addEventListener("keydown", (e) => { if (e.key === "Escape" && state.q) { state.q = ""; e.target.value = ""; renderItems(); } });
+  $("#sort").addEventListener("change", (e) => { state.sort = e.target.value; renderItems(); });
+  $("#changed").addEventListener("change", (e) => { state.changedOnly = e.target.checked; renderItems(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "/" || e.metaKey || e.ctrlKey || /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+    e.preventDefault();
+    if ($("#view-items").hidden) location.hash = "items";
+    $("#q").focus();
+  });
+  window.addEventListener("hashchange", route);
+}
+
+function renderChrome(modified) {
+  $("#nav-count").textContent = ` ${items.length}`;
+  const gh = location.hostname.match(/^([^.]+)\.github\.io$/);
+  if (gh) {
+    const repo = location.pathname.split("/").filter(Boolean)[0] || `${gh[1]}.github.io`;
+    Object.assign($("#repo-link"), { href: `https://github.com/${gh[1]}/${repo}`, hidden: false });
+  }
+  const date = modified ? new Date(modified) : null;
+  $("#foot").innerHTML = `Built from <code>dataset.jsonl</code> · ${items.length} items` +
+    (date && !isNaN(date) ? ` · updated ${date.toISOString().slice(0, 10)}` : "");
+  $("#foot").hidden = false;
+}
+
+async function main() {
+  try {
+    const { raw, modified } = await load();
+    prepare(raw);
+    renderChrome(modified);
+    renderOverview();
+    renderFilters();
+    readUrl();
+    syncFilterUI();
+    renderItems();
+    bindEvents();
+    $("#status").hidden = true;
+    route();
+  } catch (e) {
+    const fileHint = location.protocol === "file:"
+      ? ` Browsers block loading files from disk; run <code>make preview-dataset-site</code> instead.`
+      : "";
+    $("#status").className = "status err";
+    $("#status").innerHTML = `Could not load the dataset: ${esc(e.message)}.${fileHint}`;
+  }
+}
+
+main();
+</script>
+</body>
+</html>
