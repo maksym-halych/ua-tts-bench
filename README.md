@@ -67,3 +67,7 @@ The script deletes the existing folder of the model before it starts.
 ## Results
 
 The `ua-tts-eval` design document describes the files in a model folder.
+
+## License
+
+MIT. See `LICENSE`.
